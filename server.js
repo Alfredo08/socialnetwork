@@ -4,6 +4,7 @@ const knex = require( 'knex' );
 const xss = require( 'xss' );
 const sqlString = require( 'sqlstring' );
 const bcrypt = require( 'bcryptjs' );
+const jsonwebtoken = require( 'jsonwebtoken' );
 
 const jsonParser = bodyParser.json();
 const app = express();
@@ -41,7 +42,21 @@ app.post( '/api/login', jsonParser, ( req, res ) => {
                 .then( compareResult => {
                     console.log( compareResult );
                     if ( compareResult ){
-                        return res.status(200).json({message : `Welcome back ${username}` })
+                        
+                        jsonwebtoken.sign({user: username}, 'shhhhh', {expiresIn: 60 * 2 /* Expire in two minutes*/},function(err, token) {
+                            if( err ){
+                                console.log( "issue with token!");
+                            }
+                            else{
+                                console.log(token);
+                                return res.status(200).json({
+                                    message : `Welcome back ${username}`,
+                                    token : token       
+                                });
+                            }
+                            
+                        });
+
                     }
                     else{
                         throw new Error( "Please verify your credentials");
