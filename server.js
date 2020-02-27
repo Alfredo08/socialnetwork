@@ -17,7 +17,7 @@ app.use(function(req, res, next) {
       return res.send(204);
     }
     next();
-  });
+});
 
 const database = knex({
     client: 'pg',
