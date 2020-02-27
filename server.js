@@ -9,6 +9,16 @@ const jsonwebtoken = require( 'jsonwebtoken' );
 const jsonParser = bodyParser.json();
 const app = express();
 
+app.use(function(req, res, next) {
+    res.header("Access-Control-Allow-Origin", "*");
+    res.header("Access-Control-Allow-Headers", "Content-Type,Authorization");
+    res.header("Access-Control-Allow-Methods", "GET,POST,PUT,PATCH,DELETE");
+    if (req.method === "OPTIONS") {
+      return res.send(204);
+    }
+    next();
+  });
+
 const database = knex({
     client: 'pg',
     connection : 'postgresql://alfredosalazar@localhost/socialnetwork'
@@ -33,17 +43,17 @@ app.post( '/api/login', jsonParser, ( req, res ) => {
     t.then( result => {
 
         if( result.length > 0 ){
-            bcrypt.hash(password, 10)
+            /*bcrypt.hash(password, 10)
                 .then( newpass => {
                     console.log("DB", result[0].password);
                     console.log("New", newpass);
-                })
+                }) */
             bcrypt.compare(password, result[0].password)
                 .then( compareResult => {
                     console.log( compareResult );
                     if ( compareResult ){
                         
-                        jsonwebtoken.sign({user: username}, 'shhhhh', {expiresIn: 60 * 2 /* Expire in two minutes*/},function(err, token) {
+                        jsonwebtoken.sign({user: username, firstname : result[0].firstname, lastname : result[0].lastname}, 'shhhhh', {expiresIn: 60 * 2 /* Expire in two minutes*/},function(err, token) {
                             if( err ){
                                 console.log( "issue with token!");
                             }
@@ -83,14 +93,16 @@ app.post( '/api/login', jsonParser, ( req, res ) => {
 
 app.post( '/api/create-user', jsonParser, ( req, res ) => {
 
-    let { username, password } = req.body;
+    let { username, password, firstname, lastname } = req.body;
 
     bcrypt.hash( password, 10 )
         .then( hashPassword => {
             console.log( hashPassword );
             let newUser = {
                 username,
-                password : hashPassword
+                password : hashPassword,
+                firstname,
+                lastname
             }
 
             database
@@ -99,13 +111,29 @@ app.post( '/api/create-user', jsonParser, ( req, res ) => {
                 .returning('*')
                 .then( userCreated => {
                     console.log( userCreated );
-                    return res.status(200).json(userCreated);
+                    return res.status(200).json({message : "userCreated"});
                 })
                 .catch( err => {
                     res.statusMessage = "Something wen wrong. Try again later.";
                     return res.status(404).send();
                 });
         });
+});
+
+app.get( '/api/current-user', ( req, res ) => {
+    let token = req.headers.authorization;
+    token = token.split(' ')[1];
+    console.log( token )
+    jsonwebtoken.verify(token, 'shhhhh', function(err, decoded) {
+        console.log( decoded )
+        if ( err ){
+            return res.sendStatus(401);
+        }
+        else{
+            return res.status(200).json( decoded );
+        }
+    });
+
 });
 
 app.listen( 8080, () =>{
